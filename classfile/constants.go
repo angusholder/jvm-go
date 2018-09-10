@@ -1,20 +1,41 @@
 package classfile
 
-import "github.com/pkg/errors"
+import (
+	"github.com/angusholder/jvm-go/jvm"
+	"github.com/pkg/errors"
+	"math"
+)
 
 const (
-	constUtf8    = 1
+	constClass   = 7
+	constString  = 8
 	constInteger = 3
 	constFloat   = 4
 	constLong    = 5
 	constDouble  = 6
-	constClass   = 7
-	constString  = 8
+	constUtf8    = 1
 	//constFieldRef           = 9
 	//constMethodRef          = 10
 	//constInterfaceMethodRef = 11
 	//constNameAndType        = 12
 )
+
+func parseConstantPool(scn *BinScanner) ([]CpInfo, error) {
+	constantCount := scn.Uint16()
+	pool := make([]CpInfo, constantCount)
+	for i := 0; i < int(constantCount); i++ {
+		con, err := parseConstant(scn)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse class constant pool")
+		}
+		pool[i] = con
+		if isDoubleLength(con) {
+			pool[i+1] = ConstantUnusableInfo{} // 4.4.5 "The constant_pool index n+1 must be valid but is considered unusable"
+			i++
+		}
+	}
+	return pool, nil
+}
 
 func parseConstant(scn *BinScanner) (cp CpInfo, err error) {
 	switch scn.Uint8() {
@@ -23,15 +44,15 @@ func parseConstant(scn *BinScanner) (cp CpInfo, err error) {
 	case constString:
 		cp = ConstantStringInfo{scn.Uint16()}
 	case constInteger:
-		cp = ConstantIntegerInfo{scn.Uint32()}
+		cp = scanConstantIntegerInfo(scn)
 	case constFloat:
-		cp = ConstantFloatInfo{scn.Uint32()}
+		cp = scanConstantFloatInfo(scn)
 	case constLong:
-		cp = ConstantLongInfo{scn.Uint32(), scn.Uint32()}
+		cp = scanConstantLongInfo(scn)
 	case constDouble:
-		cp = ConstantDoubleInfo{scn.Uint32(), scn.Uint32()}
+		cp = scanConstantDoubleInfo(scn)
 	case constUtf8:
-		cp = ConstantUtf8Info{scn.Bytes(int(scn.Uint16()))}
+		cp = scanConstantUtf8Info(scn)
 	default:
 		err = errors.New("invalid constant kind")
 	}
@@ -41,6 +62,20 @@ func parseConstant(scn *BinScanner) (cp CpInfo, err error) {
 type CpInfo interface {
 	constantMarkerFunc()
 }
+
+func isDoubleLength(info CpInfo) bool {
+	switch info.(type) {
+	case ConstantLongInfo:
+	case ConstantDoubleInfo:
+		return true
+	default:
+		return false
+	}
+}
+
+type ConstantUnusableInfo struct{}
+
+func (c ConstantUnusableInfo) constantMarkerFunc() {}
 
 type ConstantClassInfo struct {
 	NameIndex uint16 // Must be the index of a ConstantUtf8Info
@@ -54,34 +89,42 @@ type ConstantStringInfo struct {
 
 func (c ConstantStringInfo) constantMarkerFunc() {}
 
-type ConstantIntegerInfo struct {
-	Bytes uint32
-}
+type ConstantIntegerInfo jvm.Jint
 
 func (c ConstantIntegerInfo) constantMarkerFunc() {}
 
-type ConstantFloatInfo struct {
-	Bytes uint32
+func scanConstantIntegerInfo(scn *BinScanner) ConstantIntegerInfo {
+	return ConstantIntegerInfo(scn.Uint32())
 }
+
+type ConstantFloatInfo jvm.Jfloat
 
 func (c ConstantFloatInfo) constantMarkerFunc() {}
 
-type ConstantLongInfo struct {
-	HighBytes uint32
-	LowBytes  uint32
+func scanConstantFloatInfo(scn *BinScanner) ConstantFloatInfo {
+	return ConstantFloatInfo(math.Float32frombits(scn.Uint32()))
 }
+
+type ConstantLongInfo jvm.Jlong
 
 func (c ConstantLongInfo) constantMarkerFunc() {}
 
-type ConstantDoubleInfo struct {
-	HighBytes uint32
-	LowBytes  uint32
+func scanConstantLongInfo(scn *BinScanner) ConstantLongInfo {
+	return ConstantLongInfo(scn.Uint64())
 }
+
+type ConstantDoubleInfo jvm.Jdouble
 
 func (c ConstantDoubleInfo) constantMarkerFunc() {}
 
-type ConstantUtf8Info struct {
-	Bytes []uint8
+func scanConstantDoubleInfo(scn *BinScanner) ConstantDoubleInfo {
+	return ConstantDoubleInfo(math.Float64frombits(scn.Uint64()))
 }
 
+type ConstantUtf8Info []uint8
+
 func (c ConstantUtf8Info) constantMarkerFunc() {}
+
+func scanConstantUtf8Info(scn *BinScanner) ConstantUtf8Info {
+	return ConstantUtf8Info(scn.Bytes(int(scn.Uint16())))
+}

@@ -35,6 +35,13 @@ func (b *BinScanner) Uint32() uint32 {
 	return n
 }
 
+func (b *BinScanner) Uint64() uint64 {
+	b.checkBounds(8)
+	n := binary.BigEndian.Uint64(b.slice)
+	b.slice = b.slice[8:]
+	return n
+}
+
 func (b *BinScanner) Bytes(count int) []uint8 {
 	b.checkBounds(count)
 	bytes := b.slice[0:count]

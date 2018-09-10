@@ -29,15 +29,11 @@ func ParseFrom(b []uint8) (*ClassFile, error) {
 	cls.MinorVersion = scn.Uint16()
 	cls.MajorVersion = scn.Uint16()
 
-	constantCount := scn.Uint16()
-	cls.ConstantPool = make([]CpInfo, constantCount)
-	for i := range cls.ConstantPool {
-		con, err := parseConstant(&scn)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse class constant pool")
-		}
-		cls.ConstantPool[i] = con
+	pool, err := parseConstantPool(&scn)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse class constant pool")
 	}
+	cls.ConstantPool = pool
 
 	cls.AccessFlags = scn.Uint16()
 	cls.ThisClass = scn.Uint16()
