@@ -63,6 +63,20 @@ func (i *Jvm) op2L(action func(Jlong, Jlong) Jlong) {
 	i.pushl(result)
 }
 
+func (i *Jvm) op2F(action func(Jfloat, Jfloat) Jfloat) {
+	a := i.popf()
+	b := i.popf()
+	result := action(a, b)
+	i.pushf(result)
+}
+
+func (i *Jvm) op2D(action func(Jdouble, Jdouble) Jdouble) {
+	a := i.popd()
+	b := i.popd()
+	result := action(a, b)
+	i.pushd(result)
+}
+
 func (i *Jvm) Interpret(opcode Opcode) {
 	switch opcode {
 	case OpcodeIconstM1:
@@ -134,6 +148,32 @@ func (i *Jvm) Interpret(opcode Opcode) {
 		i.op2L(func(a, b Jlong) Jlong { return a >> uint8(b) })
 	case OpcodeLushr:
 		i.op2L(func(a, b Jlong) Jlong { return Jlong(uint64(a) >> uint64(b)) })
+
+	case OpcodeFadd:
+		i.op2F(func(a, b Jfloat) Jfloat { return a + b })
+	case OpcodeFsub:
+		i.op2F(func(a, b Jfloat) Jfloat { return a - b })
+	case OpcodeFmul:
+		i.op2F(func(a, b Jfloat) Jfloat { return a * b })
+	case OpcodeFdiv:
+		i.op2F(func(a, b Jfloat) Jfloat { return a / b })
+	case OpcodeFrem:
+		i.op2F(func(a, b Jfloat) Jfloat { return Jfloat(math.Remainder(float64(a), float64(b))) })
+	case OpcodeFneg:
+		i.pushf(-i.popf())
+
+	case OpcodeDadd:
+		i.op2D(func(a, b Jdouble) Jdouble { return a + b })
+	case OpcodeDsub:
+		i.op2D(func(a, b Jdouble) Jdouble { return a - b })
+	case OpcodeDmul:
+		i.op2D(func(a, b Jdouble) Jdouble { return a * b })
+	case OpcodeDdiv:
+		i.op2D(func(a, b Jdouble) Jdouble { return a / b })
+	case OpcodeDrem:
+		i.op2D(func(a, b Jdouble) Jdouble { return math.Remainder(a, b) })
+	case OpcodeDneg:
+		i.pushd(-i.popd())
 
 	}
 }
