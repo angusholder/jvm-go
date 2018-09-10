@@ -1,32 +1,44 @@
 package classfile
 
 import (
+	"fmt"
 	"github.com/angusholder/jvm-go/jvm"
 	"github.com/pkg/errors"
 	"math"
 )
 
 const (
-	constClass   = 7
-	constString  = 8
-	constInteger = 3
-	constFloat   = 4
-	constLong    = 5
-	constDouble  = 6
-	constUtf8    = 1
-	//constFieldRef           = 9
-	//constMethodRef          = 10
-	//constInterfaceMethodRef = 11
-	//constNameAndType        = 12
+	constClass              = 7
+	constString             = 8
+	constInteger            = 3
+	constFloat              = 4
+	constLong               = 5
+	constDouble             = 6
+	constUtf8               = 1
+	constFieldRef           = 9
+	constMethodRef          = 10
+	constInterfaceMethodRef = 11
+	constNameAndType        = 12
 )
 
 func parseConstantPool(scn *BinScanner) ([]CpInfo, error) {
 	constantCount := scn.Uint16()
 	pool := make([]CpInfo, constantCount)
-	for i := 0; i < int(constantCount); i++ {
+	fmt.Printf("Parsing %d (0x%x) constants\n", constantCount, constantCount)
+	for i := 1; i < int(constantCount); i++ {
 		con, err := parseConstant(scn)
+
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to parse class constant pool")
+			return nil, err
+		}
+
+		switch v := con.(type) {
+		case ConstantIntegerInfo, ConstantLongInfo, ConstantFloatInfo, ConstantDoubleInfo:
+			fmt.Printf("constant[%d] = %v (%T)\n", i, v, v)
+		case ConstantUtf8Info:
+			fmt.Printf("constant[%d] = \"%v\"\n", i, v)
+		default:
+			fmt.Printf("constant[%d] = %#v\n", i, v)
 		}
 		pool[i] = con
 		if isDoubleLength(con) {
@@ -53,6 +65,14 @@ func parseConstant(scn *BinScanner) (cp CpInfo, err error) {
 		cp = scanConstantDoubleInfo(scn)
 	case constUtf8:
 		cp = scanConstantUtf8Info(scn)
+	case constFieldRef:
+		cp = ConstantFieldRefInfo{scn.Uint16(), scn.Uint16()}
+	case constMethodRef:
+		cp = ConstantMethodRefInfo{scn.Uint16(), scn.Uint16()}
+	case constInterfaceMethodRef:
+		cp = ConstantInterfaceMethodRefInfo{scn.Uint16(), scn.Uint16()}
+	case constNameAndType:
+		cp = ConstantNameAndTypeInfo{scn.Uint16(), scn.Uint16()}
 	default:
 		err = errors.New("invalid constant kind")
 	}
@@ -65,12 +85,10 @@ type CpInfo interface {
 
 func isDoubleLength(info CpInfo) bool {
 	switch info.(type) {
-	case ConstantLongInfo:
-	case ConstantDoubleInfo:
+	case ConstantLongInfo, ConstantDoubleInfo:
 		return true
-	default:
-		return false
 	}
+	return false
 }
 
 type ConstantUnusableInfo struct{}
@@ -121,10 +139,38 @@ func scanConstantDoubleInfo(scn *BinScanner) ConstantDoubleInfo {
 	return ConstantDoubleInfo(math.Float64frombits(scn.Uint64()))
 }
 
-type ConstantUtf8Info []uint8
+type ConstantUtf8Info string
 
 func (c ConstantUtf8Info) constantMarkerFunc() {}
 
 func scanConstantUtf8Info(scn *BinScanner) ConstantUtf8Info {
 	return ConstantUtf8Info(scn.Bytes(int(scn.Uint16())))
 }
+
+type ConstantFieldRefInfo struct {
+	ClassIndex       uint16
+	NameAndTypeIndex uint16
+}
+
+func (c ConstantFieldRefInfo) constantMarkerFunc() {}
+
+type ConstantMethodRefInfo struct {
+	ClassIndex       uint16
+	NameAndTypeIndex uint16
+}
+
+func (c ConstantMethodRefInfo) constantMarkerFunc() {}
+
+type ConstantInterfaceMethodRefInfo struct {
+	ClassIndex       uint16
+	NameAndTypeIndex uint16
+}
+
+func (c ConstantInterfaceMethodRefInfo) constantMarkerFunc() {}
+
+type ConstantNameAndTypeInfo struct {
+	NameIndex       uint16
+	DescriptorIndex uint16
+}
+
+func (c ConstantNameAndTypeInfo) constantMarkerFunc() {}
