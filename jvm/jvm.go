@@ -1,7 +1,6 @@
 package jvm
 
 import (
-	"github.com/angusholder/jvm-go/opcodes"
 	"math"
 )
 
@@ -64,76 +63,76 @@ func (i *Jvm) op2L(action func(Jlong, Jlong) Jlong) {
 	i.pushl(result)
 }
 
-func (i *Jvm) Interpret(opcode opcodes.Opcode) {
+func (i *Jvm) Interpret(opcode Opcode) {
 	switch opcode {
-	case opcodes.IconstM1:
+	case OpcodeIconstM1:
 		i.pushi(-1)
-	case opcodes.Iconst0:
+	case OpcodeIconst0:
 		i.pushi(0)
-	case opcodes.Iconst1:
+	case OpcodeIconst1:
 		i.pushi(1)
-	case opcodes.Iconst2:
+	case OpcodeIconst2:
 		i.pushi(2)
-	case opcodes.Iconst3:
+	case OpcodeIconst3:
 		i.pushi(3)
-	case opcodes.Iconst4:
+	case OpcodeIconst4:
 		i.pushi(4)
-	case opcodes.Iconst5:
+	case OpcodeIconst5:
 		i.pushi(5)
 
-	case opcodes.Lconst0:
+	case OpcodeLconst0:
 		i.pushl(0)
-	case opcodes.Lconst1:
+	case OpcodeLconst1:
 		i.pushl(1)
 
-	case opcodes.Iadd:
+	case OpcodeIadd:
 		i.op2I(func(a, b Jint) Jint { return a + b })
-	case opcodes.Isub:
+	case OpcodeIsub:
 		i.op2I(func(a, b Jint) Jint { return a - b })
-	case opcodes.Imul:
+	case OpcodeImul:
 		i.op2I(func(a, b Jint) Jint { return a * b })
-	case opcodes.Idiv:
+	case OpcodeIdiv:
 		i.op2I(func(a, b Jint) Jint { return a / b })
-	case opcodes.Irem:
+	case OpcodeIrem:
 		i.op2I(func(a, b Jint) Jint { return a % b })
-	case opcodes.Ineg:
+	case OpcodeIneg:
 		i.pushi(-i.popi())
-	case opcodes.Iand:
+	case OpcodeIand:
 		i.op2I(func(a, b Jint) Jint { return a & b })
-	case opcodes.Ior:
+	case OpcodeIor:
 		i.op2I(func(a, b Jint) Jint { return a | b })
-	case opcodes.Ixor:
+	case OpcodeIxor:
 		i.op2I(func(a, b Jint) Jint { return a ^ b })
-	case opcodes.Ishl:
+	case OpcodeIshl:
 		i.op2I(func(a, b Jint) Jint { return a << uint8(b) })
-	case opcodes.Ishr:
+	case OpcodeIshr:
 		i.op2I(func(a, b Jint) Jint { return a >> uint8(b) })
-	case opcodes.Iushr:
+	case OpcodeIushr:
 		i.op2I(func(a, b Jint) Jint { return Jint(uint32(a) >> uint32(b)) })
 
-	case opcodes.Ladd:
+	case OpcodeLadd:
 		i.op2L(func(a, b Jlong) Jlong { return a + b })
-	case opcodes.Lsub:
+	case OpcodeLsub:
 		i.op2L(func(a, b Jlong) Jlong { return a - b })
-	case opcodes.Lmul:
+	case OpcodeLmul:
 		i.op2L(func(a, b Jlong) Jlong { return a * b })
-	case opcodes.Ldiv:
+	case OpcodeLdiv:
 		i.op2L(func(a, b Jlong) Jlong { return a / b })
-	case opcodes.Lrem:
+	case OpcodeLrem:
 		i.op2L(func(a, b Jlong) Jlong { return a % b })
-	case opcodes.Lneg:
+	case OpcodeLneg:
 		i.pushl(-i.popl())
-	case opcodes.Land:
+	case OpcodeLand:
 		i.op2L(func(a, b Jlong) Jlong { return a & b })
-	case opcodes.Lor:
+	case OpcodeLor:
 		i.op2L(func(a, b Jlong) Jlong { return a | b })
-	case opcodes.Lxor:
+	case OpcodeLxor:
 		i.op2L(func(a, b Jlong) Jlong { return a ^ b })
-	case opcodes.Lshl:
+	case OpcodeLshl:
 		i.op2L(func(a, b Jlong) Jlong { return a << uint8(b) })
-	case opcodes.Lshr:
+	case OpcodeLshr:
 		i.op2L(func(a, b Jlong) Jlong { return a >> uint8(b) })
-	case opcodes.Lushr:
+	case OpcodeLushr:
 		i.op2L(func(a, b Jlong) Jlong { return Jlong(uint64(a) >> uint64(b)) })
 
 	}
