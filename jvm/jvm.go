@@ -1,6 +1,7 @@
 package jvm
 
 import (
+	"encoding/binary"
 	"math"
 )
 
@@ -12,7 +13,7 @@ type Jdouble = float64
 type Jvm struct {
 	code          []uint8
 	codeOffset    uint
-	locals        []Jlong
+	locals        []uint64
 	valueStack    []Jint
 	valueStackTop uint
 	wide          bool
@@ -77,7 +78,31 @@ func (i *Jvm) op2D(action func(Jdouble, Jdouble) Jdouble) {
 	i.pushd(result)
 }
 
-func (i *Jvm) Interpret(opcode Opcode) {
+func (i *Jvm) loadLocalI(offset int) { i.pushi(Jint(i.locals[offset])) }
+func (i *Jvm) loadLocalL(offset int) { i.pushl(Jlong(i.locals[offset])) }
+func (i *Jvm) loadLocalF(offset int) { i.pushf(math.Float32frombits(uint32(i.locals[offset]))) }
+func (i *Jvm) loadLocalD(offset int) { i.pushd(math.Float64frombits(i.locals[offset])) }
+
+func (i *Jvm) storeLocalI(offset int) { i.locals[offset] = uint64(i.popi()) }
+func (i *Jvm) storeLocalL(offset int) { i.locals[offset] = uint64(i.popl()) }
+func (i *Jvm) storeLocalF(offset int) { i.locals[offset] = uint64(math.Float32bits(i.popf())) }
+func (i *Jvm) storeLocalD(offset int) { i.locals[offset] = math.Float64bits(i.popd()) }
+
+func (i *Jvm) getOpcodeOffset() int {
+	var result int
+	if i.wide {
+		result = int(binary.BigEndian.Uint16(i.code[i.codeOffset:]))
+		i.codeOffset += 2
+	} else {
+		result = int(i.code[i.codeOffset])
+		i.codeOffset += 1
+	}
+	return result
+}
+
+func (i *Jvm) Interpret() {
+	opcode := Opcode(i.code[i.codeOffset])
+	i.codeOffset++
 	switch opcode {
 	case OpcodeIconstM1:
 		i.pushi(-1)
@@ -174,6 +199,42 @@ func (i *Jvm) Interpret(opcode Opcode) {
 		i.op2D(func(a, b Jdouble) Jdouble { return math.Remainder(a, b) })
 	case OpcodeDneg:
 		i.pushd(-i.popd())
+
+	case OpcodeIload0, OpcodeIload1, OpcodeIload2, OpcodeIload3:
+		i.loadLocalI(int(opcode - OpcodeIload0))
+	case OpcodeLload0, OpcodeLload1, OpcodeLload2, OpcodeLload3:
+		i.loadLocalL(int(opcode - OpcodeLload0))
+	case OpcodeFload0, OpcodeFload1, OpcodeFload2, OpcodeFload3:
+		i.loadLocalF(int(opcode - OpcodeFload0))
+	case OpcodeDload0, OpcodeDload1, OpcodeDload2, OpcodeDload3:
+		i.loadLocalD(int(opcode - OpcodeDload0))
+
+	case OpcodeIstore0, OpcodeIstore1, OpcodeIstore2, OpcodeIstore3:
+		i.storeLocalI(int(opcode - OpcodeIstore0))
+	case OpcodeLstore0, OpcodeLstore1, OpcodeLstore2, OpcodeLstore3:
+		i.storeLocalL(int(opcode - OpcodeLstore0))
+	case OpcodeFstore0, OpcodeFstore1, OpcodeFstore2, OpcodeFstore3:
+		i.storeLocalF(int(opcode - OpcodeFstore0))
+	case OpcodeDstore0, OpcodeDstore1, OpcodeDstore2, OpcodeDstore3:
+		i.storeLocalD(int(opcode - OpcodeDstore0))
+
+	case OpcodeIload:
+		i.loadLocalI(i.getOpcodeOffset())
+	case OpcodeLload:
+		i.loadLocalL(i.getOpcodeOffset())
+	case OpcodeFload:
+		i.loadLocalF(i.getOpcodeOffset())
+	case OpcodeDload:
+		i.loadLocalD(i.getOpcodeOffset())
+
+	case OpcodeIstore:
+		i.storeLocalI(i.getOpcodeOffset())
+	case OpcodeLstore:
+		i.storeLocalL(i.getOpcodeOffset())
+	case OpcodeFstore:
+		i.storeLocalF(i.getOpcodeOffset())
+	case OpcodeDstore:
+		i.storeLocalD(i.getOpcodeOffset())
 
 	}
 }
